@@ -1,0 +1,14 @@
+{
+  "name": "fetch-restricted",
+  "description": "Allow fetching from specific trusted domains only. No file access.",
+  "default_deny": true,
+  "tool_policies": {
+    "fetch": {
+      "tool_name": "fetch",
+      "capabilities": [
+        { "NetworkConnect": ["api.github.com", "0-65535"] },
+        { "NetworkConnect": ["registry.npmjs.org", "0-65535"] }
+      ]
+    }
+  }
+}

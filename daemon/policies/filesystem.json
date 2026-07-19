@@ -1,0 +1,19 @@
+{
+  "name": "filesystem-readonly",
+  "description": "Read-only access to a workspace directory. Blocks all network and SSH key access.",
+  "default_deny": true,
+  "tool_policies": {
+    "read_file": {
+      "tool_name": "read_file",
+      "capabilities": [
+        { "FileRead": "/workspace/*" }
+      ]
+    },
+    "list_directory": {
+      "tool_name": "list_directory",
+      "capabilities": [
+        { "FileRead": "/workspace/*" }
+      ]
+    }
+  }
+}
