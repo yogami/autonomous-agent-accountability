@@ -265,20 +265,15 @@ pub async fn relay_with_intercept(mut child: Child) -> Result<(), Box<dyn std::e
         }
     });
 
-    tokio::select! {
-        _ = parent_to_child => {
-            let _ = tokio::time::timeout(std::time::Duration::from_secs(2), child.wait()).await;
-            let _ = child.kill().await;
-        }
-        _ = child_to_parent => {
-            let _ = child.kill().await;
-        }
-    }
+    let _ = parent_to_child.await;
     let _ = child.wait().await;
+    let _ = child_to_parent.await;
     
     // FLUSH QUEUE BEFORE EXITING
     // Ensures short-lived commands sync their events to the ledger
-    ledger_client_final.sync_queue().await;
+    for _ in 0..10 {
+        ledger_client_final.sync_queue().await;
+    }
     
     Ok(())
 }
