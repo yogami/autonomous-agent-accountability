@@ -340,6 +340,10 @@ def simulate_agent(req: SimulateRequest):
     for line in out.splitlines():
         proxy_logs.append(f"> stdout: {line}")
         
+    # Give the background FastAPI event loop a moment to process the /seal HTTP POST
+    import time
+    time.sleep(0.5)
+    
     # Fetch the latest ledger log for "demo-device" to show it updating in real-time
     cur = con.cursor()
     cur.execute("SELECT nonce, payload_hash, receipt_signature, chain_hash, action_status FROM events WHERE device_id = 'demo-device' ORDER BY rowid DESC LIMIT 1")
