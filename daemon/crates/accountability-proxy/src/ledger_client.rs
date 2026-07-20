@@ -310,7 +310,7 @@ impl LedgerClient {
         });
     }
 
-    async fn sync_queue(&self) {
+    pub async fn sync_queue(&self) {
         let event_opt = {
             let conn = self.db_conn.lock().await;
             let mut stmt = match conn.prepare("

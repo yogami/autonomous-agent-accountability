@@ -274,5 +274,10 @@ pub async fn relay_with_intercept(mut child: Child) -> Result<(), Box<dyn std::e
         }
     }
     let _ = child.wait().await;
+    
+    // FLUSH QUEUE BEFORE EXITING
+    // Ensures short-lived commands sync their events to the ledger
+    ledger_client.sync_queue().await;
+    
     Ok(())
 }
