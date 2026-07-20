@@ -369,7 +369,12 @@ impl LedgerClient {
                         }
                     }
                 }
-                _ => {}
+                Ok(res) => {
+                    eprintln!("CRITICAL: Ledger /seal rejected event! Status: {}", res.status());
+                }
+                Err(e) => {
+                    eprintln!("CRITICAL: Network error sending to /seal: {}", e);
+                }
             }
         }
     }

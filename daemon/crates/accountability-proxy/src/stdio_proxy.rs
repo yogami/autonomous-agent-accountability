@@ -97,7 +97,10 @@ pub async fn relay_with_intercept(mut child: Child) -> Result<(), Box<dyn std::e
                                     }
                                 }
                             }
-                            requires
+                            
+                            eprintln!("CRITICAL-DEBUG: TOOL='{}', POLICY='{}', IRREVERSIBLE={}", tool_name_str, policy_json_str, requires);
+                            let is_irreversible = requires;
+                            is_irreversible
                         };
 
                         if !is_irreversible {
