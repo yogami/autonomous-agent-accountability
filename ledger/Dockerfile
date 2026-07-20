@@ -1,6 +1,7 @@
 # Stage 1: Build Rust Daemon
 FROM rust:1.80-slim-bookworm as builder
 WORKDIR /app
+RUN apt-get update && apt-get install -y pkg-config libssl-dev
 COPY daemon/ daemon/
 RUN cd daemon && cargo build --release
 
