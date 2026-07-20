@@ -328,7 +328,7 @@ def simulate_agent(req: SimulateRequest):
         
     try:
         proc = subprocess.Popen(cmd, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        out, err = proc.communicate(input=payload + "\\n", timeout=5)
+        out, err = proc.communicate(input=payload + "\n", timeout=5)
     except Exception as e:
         return {"proxy_logs": [f"Error executing daemon: {e}"], "ledger_logs": []}
     
