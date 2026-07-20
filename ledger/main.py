@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from nacl.signing import VerifyKey, SigningKey
 from nacl.exceptions import BadSignatureError
@@ -9,6 +10,7 @@ import os
 import json
 
 app = FastAPI(title="Autonomous Agent Accountability Remote Ledger")
+app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
 
 # --- DATABASE SETUP ---
 DB_PATH = os.environ.get("LEDGER_DB_PATH", "ledger.db")
@@ -18,7 +20,7 @@ db_dir = os.path.dirname(DB_PATH)
 if db_dir:
     os.makedirs(db_dir, exist_ok=True)
 
-con = sqlite3.connect(DB_PATH, check_same_thread=False)
+con = sqlite3.connect(DB_PATH, check_same_thread=False, isolation_level=None)
 
 # Enable WAL mode for safe concurrency
 con.execute("PRAGMA journal_mode=WAL;")
@@ -121,15 +123,15 @@ except json.JSONDecodeError:
 # --- SCHEMAS ---
 class SealRequest(BaseModel):
     payload_hash: str = Field(..., pattern=r'^[a-f0-9]{64}$')
-    agent_id: str = Field(..., min_length=1, max_length=128)
+    agent_id: str = Field(..., min_length=1, max_length=128, pattern=r'^[a-zA-Z0-9_\-]+$')
     local_timestamp: int
     nonce: str = Field(..., pattern=r'^[a-f0-9\-]{36}$') # UUID
-    device_id: str = Field(..., min_length=1, max_length=128)
+    device_id: str = Field(..., min_length=1, max_length=128, pattern=r'^[a-zA-Z0-9_\-]+$')
     device_signature: str = Field(..., pattern=r'^[a-f0-9]{128}$')
-    action_status: str = Field("UNKNOWN", max_length=32)
+    action_status: str = Field("UNKNOWN", max_length=32, pattern=r'^[a-zA-Z0-9_\-]+$')
 
 class LeaseRequest(BaseModel):
-    device_id: str
+    device_id: str = Field(..., pattern=r'^[a-zA-Z0-9_\-]+$')
 
 @app.post("/lease")
 async def request_lease(req: LeaseRequest):
@@ -174,12 +176,14 @@ async def seal_event(req: SealRequest):
         last_row = cur.fetchone()
         previous_hash = last_row[0] if (last_row and last_row[0]) else ("0" * 64)
         
+        canonical_record = f"{req.payload_hash}:{req.local_timestamp}:{req.device_id}:{req.nonce}:{req.agent_id}:{req.action_status}:{req.device_signature}"
+        record_hasher = hashlib.sha256()
+        record_hasher.update(canonical_record.encode('utf-8'))
+        
         hasher = hashlib.sha256()
-        hasher.update(previous_hash.encode())
-        hasher.update(req.payload_hash.encode())
-        hasher.update(req.nonce.encode())
-        hasher.update(req.action_status.encode())
-        hasher.update(str(ledger_timestamp).encode())
+        hasher.update(previous_hash.encode('utf-8'))
+        hasher.update(record_hasher.digest())
+        hasher.update(str(ledger_timestamp).encode('utf-8'))
         chain_hash = hasher.hexdigest()
 
         # 4. Generate Receipt
@@ -200,11 +204,6 @@ async def seal_event(req: SealRequest):
             previous_hash, chain_hash, req.action_status
         ))
         con.commit()
-        
-        if os.environ.get("FAULT_INJECT_DROP_RESPONSE") == "1":
-            import os as system_os
-            import signal
-            system_os.kill(system_os.getpid(), signal.SIGKILL)
     except sqlite3.IntegrityError:
         con.rollback()
         cur.execute("SELECT payload_hash, agent_id, local_timestamp, device_id, device_signature, receipt_signature, ledger_timestamp, chain_hash, action_status FROM events WHERE nonce = ? AND action_status = ?", (req.nonce, req.action_status))
@@ -246,7 +245,7 @@ def health_check():
 @app.get("/logs")
 def get_logs():
     cur = con.cursor()
-    cur.execute("SELECT nonce, payload_hash, agent_id, local_timestamp, device_id, device_signature, receipt_signature, ledger_timestamp, previous_hash, chain_hash, action_status FROM events ORDER BY ledger_timestamp DESC LIMIT 100")
+    cur.execute("SELECT nonce, payload_hash, agent_id, local_timestamp, device_id, device_signature, receipt_signature, ledger_timestamp, previous_hash, chain_hash, action_status FROM events ORDER BY rowid ASC")
     rows = cur.fetchall()
     logs = []
     for row in rows:
@@ -264,3 +263,5 @@ def get_logs():
             "action_status": row[10]
         })
     return {"logs": logs}
+
+

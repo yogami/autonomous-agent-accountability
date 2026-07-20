@@ -1,0 +1,13 @@
+*.db
+*.db-shm
+*.db-wal
+test_venv/
+venv/
+ledger/venv/
+node-v20.10.0-darwin-arm64/
+node.tar.xz
+__pycache__/
+*.pyc
+.pytest_cache/
+test_bundle.agentwitness_bundle
+test_mock.bundle
