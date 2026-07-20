@@ -23,7 +23,10 @@
             <textarea id="devices-registry" rows="3" placeholder='Enter Trusted Device Registry JSON (e.g. {"device_1": "pubkey_hex"})' style="width:100%;" required></textarea><br>
             <input type="text" id="expected-anchor" placeholder="Enter Expected Final Anchor Hash (from OTS)" style="width:100%;" required /><br>
             <textarea id="bundle-input" rows="10" placeholder='Enter Project Bundle JSON' style="width:100%;" required></textarea><br>
-            <button type="submit">Verify Cryptographic Integrity</button>
+            <div style="display: flex; gap: 10px;">
+                <button type="submit">Verify Cryptographic Integrity</button>
+                <button type="button" id="tamper-btn" style="background-color: #ff4444; border-color: #cc0000; color: white;">Tamper Data (Simulate Hack)</button>
+            </div>
         </form>
         <div id="results"></div>
     </div>
@@ -154,6 +157,22 @@
                 }
             } catch (err) {
                 addLog(`VERIFICATION FAILED: ${err.message}`, "error");
+            }
+        });
+        document.getElementById('tamper-btn').addEventListener('click', function() {
+            const input = document.getElementById('bundle-input');
+            if(input.value) {
+                const idx = input.value.indexOf('"signature": "');
+                if(idx !== -1) {
+                    const charPos = idx + 14;
+                    const c = input.value.charAt(charPos);
+                    const newChar = c === '0' ? '1' : '0';
+                    input.value = input.value.substring(0, charPos) + newChar + input.value.substring(charPos+1);
+                    document.getElementById('results').innerHTML = '<div class="error">Data silently tampered (signature byte flipped). Click Verify to detect it!</div>';
+                } else {
+                    input.value = input.value.replace(/a/g, 'b');
+                    document.getElementById('results').innerHTML = '<div class="error">Data blindly tampered. Click Verify to detect it!</div>';
+                }
             }
         });
     </script>
