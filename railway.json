@@ -1,6 +1,7 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "deploy": {
+    "startCommand": "sh -c 'cd /app/ledger && LEDGER_DB_PATH=/app/data/ledger.db python3 -m uvicorn main:app --host 0.0.0.0 --port $PORT'",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   },
