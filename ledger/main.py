@@ -242,6 +242,10 @@ def health_check():
         "ledger_public_key_fingerprint": fingerprint
     }
 
+@app.get("/ping")
+def ping_check():
+    return {"ping": "pong3"}
+
 @app.get("/logs")
 def get_logs():
     cur = con.cursor()
