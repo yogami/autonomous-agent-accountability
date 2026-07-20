@@ -4,7 +4,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y pkg-config libssl-dev
 # We use the original daemon directory in the root
 COPY daemon/ daemon/
-RUN cd daemon && cargo build --release
+RUN cd daemon && cargo build
 
 # Stage 2: Python Environment
 FROM python:3.10-slim-bookworm
@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Copy compiled Rust daemon from builder into ledger directory
-COPY --from=builder /app/daemon/target/release/autonomous-agent-accountability ./ledger/daemon_bin
+COPY --from=builder /app/daemon/target/debug/autonomous-agent-accountability ./ledger/daemon_bin
 
 # Create data directory for ledger
 RUN mkdir -p /app/data
