@@ -334,8 +334,7 @@ def simulate_agent(req: SimulateRequest):
     
     proxy_logs = [f"> Intercepted JSON-RPC payload for tool '{tool_name}'..."]
     for line in err.splitlines():
-        if "WARN" in line or "INFO" in line or "ERROR" in line:
-            proxy_logs.append("> " + (line.split("]", 1)[-1].strip() if "]" in line else line))
+        proxy_logs.append("> " + (line.split("]", 1)[-1].strip() if "]" in line else line))
             
     for line in out.splitlines():
         proxy_logs.append(f"> stdout: {line}")
