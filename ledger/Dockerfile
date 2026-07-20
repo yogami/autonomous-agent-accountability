@@ -25,6 +25,7 @@ COPY --from=builder /app/daemon/target/release/autonomous-agent-accountability .
 
 # Create data directory for ledger
 RUN mkdir -p /app/data
+ENV LEDGER_DB_PATH=/app/data/ledger.db
 
 # Command to run 
-CMD ["python3", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["sh", "-c", "python3 -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
