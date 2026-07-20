@@ -163,13 +163,13 @@ async def seal_event(req: SealRequest):
         raise HTTPException(status_code=401, detail="Unknown device ID")
 
     # 2. PKI Verification (Ed25519)
-    message = f"{req.payload_hash}:{req.local_timestamp}:{req.device_id}:{req.nonce}:{req.agent_id}:{req.action_status}".encode('utf-8')
     try:
-        verify_key = VerifyKey(binascii.unhexlify(device_vk_hex))
-        signature_bytes = binascii.unhexlify(req.device_signature)
-        verify_key.verify(message, signature_bytes)
-    except (BadSignatureError, binascii.Error):
-        raise HTTPException(status_code=401, detail="Invalid device signature")
+        vk = VerifyKey(bytes.fromhex(device_vk_hex))
+        # The Rust daemon signs this exact formatted string for the event
+        msg_to_verify = f"{req.payload_hash}:{req.local_timestamp}:{req.device_id}:{req.nonce}:{req.agent_id}:{req.action_status}"
+        vk.verify(msg_to_verify.encode(), bytes.fromhex(req.device_signature))
+    except Exception:
+        raise HTTPException(status_code=403, detail="Invalid cryptographically signed payload")
 
     # 3. Ledger Countersign & Merkle Hash Chain
     ledger_timestamp = int(time.time())
@@ -322,7 +322,7 @@ def simulate_agent(req: SimulateRequest):
     if os.path.exists("./daemon_bin"):
         cmd = ["./daemon_bin", "--", "cat"]
     elif os.path.exists("../daemon/Cargo.toml"):
-        cmd = ["cargo", "run", "--manifest-path", "../daemon/Cargo.toml", "--", "cat"]
+        cmd = ["cargo", "run", "--bin", "autonomous-agent-accountability", "--manifest-path", "../daemon/Cargo.toml", "--", "--", "cat"]
     else:
         return {"proxy_logs": ["Error: Could not find Rust daemon binary."], "ledger_logs": []}
         
