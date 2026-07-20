@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from nacl.signing import VerifyKey, SigningKey
 from nacl.exceptions import BadSignatureError
@@ -8,6 +9,7 @@ import time
 import sqlite3
 import os
 import json
+import subprocess
 
 app = FastAPI(title="Autonomous Agent Accountability Remote Ledger")
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
@@ -119,6 +121,10 @@ try:
 except json.JSONDecodeError:
     print("WARNING: AUTHORIZED_DEVICES_JSON is invalid JSON.")
     AUTHORIZED_DEVICES = {}
+
+# Generate a temporary keypair for the Web Demo Simulator
+demo_sk = SigningKey.generate()
+AUTHORIZED_DEVICES["demo-device"] = binascii.hexlify(demo_sk.verify_key.encode()).decode()
 
 # --- SCHEMAS ---
 class SealRequest(BaseModel):
@@ -269,3 +275,88 @@ def get_logs():
     return {"logs": logs}
 
 
+class SimulateRequest(BaseModel):
+    action: str
+
+@app.get("/demo", response_class=HTMLResponse)
+def get_demo():
+    with open(os.path.join(os.path.dirname(__file__), "static", "demo.html")) as f:
+        return f.read()
+
+@app.post("/api/simulate_agent")
+def simulate_agent(req: SimulateRequest):
+    if req.action == "read_metrics":
+        payload = '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_safe_data"}}'
+        tool_name = "read_safe_data"
+    elif req.action == "restart_server":
+        payload = '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"cmd1"}}'
+        tool_name = "cmd1"
+    elif req.action == "drop_database":
+        payload = '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"cmd2"}}'
+        tool_name = "cmd2"
+    else:
+        payload = '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"unknown"}}'
+        
+    env = os.environ.copy()
+    env["ACCOUNTABILITY_PRIVATE_KEY"] = binascii.hexlify(demo_sk.encode()).decode()
+    env["ACCOUNTABILITY_DEVICE_ID"] = "demo-device"
+    env["LEDGER_PUBLIC_KEY"] = binascii.hexlify(ledger_sk.verify_key.encode()).decode()
+    
+    # Port configuration for the loopback to itself
+    port = os.environ.get("PORT", "8080")
+    env["LEDGER_URL"] = f"http://127.0.0.1:{port}"
+    env["ACCOUNTABILITY_QUEUE_DB_PATH"] = "/tmp/queue.db"
+    env["ACCOUNTABILITY_ENCRYPTION_KEY"] = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    
+    policy = {
+        "default_mode": "bypass",
+        "rules": [
+            {"tool": "read_safe_data", "mode": "bypass"},
+            {"tool": "cmd1", "mode": "require_ledger"},
+            {"tool": "cmd2", "mode": "block"}
+        ]
+    }
+    env["ACCOUNTABILITY_POLICY_JSON"] = json.dumps(policy)
+    
+    cmd = []
+    if os.path.exists("./daemon_bin"):
+        cmd = ["./daemon_bin", "--", "cat"]
+    elif os.path.exists("../daemon/Cargo.toml"):
+        cmd = ["cargo", "run", "--manifest-path", "../daemon/Cargo.toml", "--", "cat"]
+    else:
+        return {"proxy_logs": ["Error: Could not find Rust daemon binary."], "ledger_logs": []}
+        
+    try:
+        proc = subprocess.Popen(cmd, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        out, err = proc.communicate(input=payload + "\\n", timeout=5)
+    except Exception as e:
+        return {"proxy_logs": [f"Error executing daemon: {e}"], "ledger_logs": []}
+    
+    proxy_logs = [f"> Intercepted JSON-RPC payload for tool '{tool_name}'..."]
+    for line in err.splitlines():
+        if "WARN" in line or "INFO" in line or "ERROR" in line:
+            proxy_logs.append("> " + (line.split("]", 1)[-1].strip() if "]" in line else line))
+            
+    for line in out.splitlines():
+        proxy_logs.append(f"> stdout: {line}")
+        
+    # Fetch the latest ledger log for "demo-device" to show it updating in real-time
+    cur = con.cursor()
+    cur.execute("SELECT nonce, payload_hash, receipt_signature, chain_hash, action_status FROM events WHERE device_id = 'demo-device' ORDER BY rowid DESC LIMIT 1")
+    row = cur.fetchone()
+    ledger_logs = []
+    
+    if req.action == "read_metrics":
+        ledger_logs.append("> Action is Read-Only. No cryptographic sealing required.")
+    elif row:
+        status = row[4]
+        ledger_logs.append(f"> Cryptographic Seal Generated! Status: {status}")
+        ledger_logs.append(f"> Nonce: {row[0]}")
+        ledger_logs.append(f"> Payload Hash: {row[1]}")
+        ledger_logs.append(f"> Receipt Sig: {row[2][:24]}...")
+        ledger_logs.append(f"> Merkle Chain: {row[3]}")
+    elif req.action == "drop_database":
+        ledger_logs.append("> REJECTED: Action blocked by policy locally.")
+        ledger_logs.append("> Logging rogue attempt to ledger (if configured).")
+        
+    return {"proxy_logs": proxy_logs, "ledger_logs": ledger_logs}

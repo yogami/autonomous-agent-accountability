@@ -1,0 +1,30 @@
+[package]
+name = "accountability-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "CLI entrypoint for Autonomous Agent AccountabilityMCP security daemon"
+
+[[bin]]
+name = "autonomous-agent-accountability"
+path = "src/main.rs"
+
+[[bin]]
+name = "vulnerable-server"
+path = "tests/fixtures/vulnerable_server.rs"
+
+[dependencies]
+accountability-core = { path = "../accountability-core" }
+accountability-proxy = { path = "../accountability-proxy" }
+accountability-sandbox = { path = "../accountability-sandbox" }
+clap = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = "1"
+
+[dev-dependencies]
+assert_cmd = "2.2.2"
+predicates = "3.1.4"
+tempfile = "3.27.0"
