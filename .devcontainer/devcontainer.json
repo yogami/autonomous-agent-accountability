@@ -1,0 +1,19 @@
+{
+  "name": "AgentWitness Zero-Trust Demo",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "ms-python.python",
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml"
+      ]
+    }
+  },
+  "postCreateCommand": "pip3 install --user -r requirements.txt",
+  "remoteUser": "codespace"
+}
