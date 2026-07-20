@@ -351,6 +351,9 @@ def simulate_agent(req: SimulateRequest):
     
     if req.action == "read_metrics":
         ledger_logs.append("> Action is Read-Only. No cryptographic sealing required.")
+    elif req.action == "drop_database":
+        ledger_logs.append("> REJECTED: Action blocked by policy locally.")
+        ledger_logs.append("> Logging rogue attempt to ledger (if configured).")
     elif row:
         status = row[4]
         ledger_logs.append(f"> Cryptographic Seal Generated! Status: {status}")
@@ -358,8 +361,5 @@ def simulate_agent(req: SimulateRequest):
         ledger_logs.append(f"> Payload Hash: {row[1]}")
         ledger_logs.append(f"> Receipt Sig: {row[2][:24]}...")
         ledger_logs.append(f"> Merkle Chain: {row[3]}")
-    elif req.action == "drop_database":
-        ledger_logs.append("> REJECTED: Action blocked by policy locally.")
-        ledger_logs.append("> Logging rogue attempt to ledger (if configured).")
         
     return {"proxy_logs": proxy_logs, "ledger_logs": ledger_logs}
