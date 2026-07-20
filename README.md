@@ -90,8 +90,8 @@ This tests:
 
 ## Frequently Asked Questions
 
-**Q: Did an auditor review this?**
-Yeah. We ran an independent architectural review via OpenRouter (Anthropic Claude 3.5 Sonnet "Fable 5"). They formally greenlit the Irreversibility Firewall as a top tier architecture. We implemented all of their mandatory requirements: TTL leases, default-deny parameter policies, and acknowledging the exfiltration gap.
+**Q: What is the primary threat model this defends against?**
+The firewall specifically targets unauthorized, irreversible state changes (like executing `rm -rf`, modifying production databases, or initiating wire transfers). It utilizes TTL leases, default-deny parameter policies, and cryptographic hashes to guarantee that destructive actions cannot happen without leaving a permanent, undeniable cryptographic receipt.
 
 **Q: Where is the local audit database stored?**
 The proxy writes to `queue.db` directly on your host filesystem. Because the proxy is deployed natively alongside the AI agent, this is a permanent local storage mechanism that survives reboots.
