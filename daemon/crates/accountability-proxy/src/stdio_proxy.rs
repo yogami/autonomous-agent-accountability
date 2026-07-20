@@ -21,6 +21,7 @@ pub async fn relay_with_intercept(mut child: Child) -> Result<(), Box<dyn std::e
     let ledger_client_clone = ledger_client.clone();
 
     let stdout_clone1 = Arc::clone(&shared_stdout);
+    let ledger_client_final = ledger_client.clone();
     let parent_to_child = tokio::spawn(async move {
         let mut reader = BufReader::new(stdin);
         let mut line = String::new();
@@ -277,7 +278,7 @@ pub async fn relay_with_intercept(mut child: Child) -> Result<(), Box<dyn std::e
     
     // FLUSH QUEUE BEFORE EXITING
     // Ensures short-lived commands sync their events to the ledger
-    ledger_client.sync_queue().await;
+    ledger_client_final.sync_queue().await;
     
     Ok(())
 }
